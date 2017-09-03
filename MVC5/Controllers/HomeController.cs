@@ -16,8 +16,11 @@ namespace MVC5.Controllers
             PhotosetsResponse photoSetResponse = null;
             string notificarRespuesta = null;
             AlvaroRestClient clienteRest = new AlvaroRestClient(CommonCode.ApiAdress.FlickrApi.ToString());
-            if (clienteRest != null)
+            string respToken = await clienteRest.MakeRequestTokenSolicitudAsync();
+            if (clienteRest != null && !string.IsNullOrEmpty(respToken) && !respToken.Contains("Error"))
             {
+                clienteRest.AutorizarUsuario(respToken);
+                //string verificador = await clienteRest.AutorizarUsuarioAsync(respToken);
                 photoSetResponse = await clienteRest.MakeRequestPhotoSetsGetList();
                 if (photoSetResponse != null)
                 {

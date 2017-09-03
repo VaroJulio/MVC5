@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 using System.Text;
 using Newtonsoft.Json;
 using MVC5.Models;
+using System.Configuration;
 
 namespace MVC5.Common
 {
@@ -28,7 +29,7 @@ namespace MVC5.Common
         /// <returns>String con la respuesta de Flick. Puede ser un mensaje de error o si es exitosa llevar incluido el Token de solicitud</returns>
         public async Task<string> MakeRequestTokenSolicitudAsync()
         {
-            string respuestaTokenSoli = null;
+            string respuestaTokenSoli, tokenSolicitud = null;
             //Se obtiene la información de seguridad del usuario Flickr para autenticación
             string[] infoSegApp = CommonCode.ObtenerInfoSeguridadApp();
             string signature = CommonCode.ObtenerFirma(infoSegApp, out string nonce, out string timeStamp);
@@ -37,22 +38,29 @@ namespace MVC5.Common
             //Se realiza petición para obtener token de solicitud
             using (var clieneRequestToken = new HttpClient())
             {
-                string endpointUrlTokenSoli = requestUrlSolicitudToken;
-                clieneRequestToken.BaseAddress = new Uri(endpointUrlTokenSoli);
-                clieneRequestToken.DefaultRequestHeaders.Clear();
-                clieneRequestToken.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("text/html"));
-                HttpResponseMessage responseTokenSolicitud = await clieneRequestToken.GetAsync(string.Empty);
-                if (responseTokenSolicitud.IsSuccessStatusCode)
+                try
                 {
-                    respuestaTokenSoli = responseTokenSolicitud.Content.ReadAsStringAsync().Result;
+                    string endpointUrlTokenSoli = requestUrlSolicitudToken;
+                    clieneRequestToken.BaseAddress = new Uri(endpointUrlTokenSoli);
+                    clieneRequestToken.DefaultRequestHeaders.Clear();
+                    clieneRequestToken.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("text/html"));
+                    HttpResponseMessage responseTokenSolicitud = await clieneRequestToken.GetAsync(string.Empty);
+                    if (responseTokenSolicitud.IsSuccessStatusCode)
+                    {
+                        respuestaTokenSoli = responseTokenSolicitud.Content.ReadAsStringAsync().Result;
+                        tokenSolicitud = CommonCode.ObtenerTokenAutorizacion(respuestaTokenSoli);
+                    }
+                    else
+                    {
+                        tokenSolicitud = Resources.StringResources.ResourceManager.GetString("ErrorToken"); ;
+                    }
                 }
-                else
+                catch (HttpRequestException ex)
                 {
-                    //Esto puede ir en un archivode recursos (Los mensajes de excepciones)
-                    respuestaTokenSoli = "Error - No se ha podido obtener el Token de Solicitud";
+                    respuestaTokenSoli = ex.Message;
                 }
             }
-            return respuestaTokenSoli;
+            return tokenSolicitud;
         }
         
         //Todavía no se ha probado su correcto funcionamiento
@@ -83,6 +91,41 @@ namespace MVC5.Common
                 }
             }
             return photoSetResponse;
+        }
+
+        public async Task<string> AutorizarUsuarioAsync(string tokenAurtorizacion)
+        {
+            string respuestaVerificador, verificador = null;
+            using (var clienteVerificador = new HttpClient())
+            {
+                try
+                {
+                    string endpointUrlVerificador = ConfigurationManager.AppSettings["AutorizacionUsuario"] + tokenAurtorizacion;
+                    clienteVerificador.BaseAddress = new Uri(endpointUrlVerificador);
+                    clienteVerificador.DefaultRequestHeaders.Clear();
+                    clienteVerificador.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("text/html"));
+                    HttpResponseMessage responseAutorizacion = await clienteVerificador.GetAsync(string.Empty);
+                    if (responseAutorizacion.IsSuccessStatusCode)
+                    {
+                        respuestaVerificador = responseAutorizacion.Content.ReadAsStringAsync().Result;
+                        verificador = CommonCode.ObtenerVerificador(respuestaVerificador);
+                    }
+                    else
+                    {
+                        verificador = Resources.StringResources.ResourceManager.GetString("ErrorVerificador");
+                    }
+                }
+                catch (HttpRequestException ex)
+                {
+                    verificador = ex.Message;
+                }
+            }
+            return verificador;
+        }
+
+        public  void AutorizarUsuario(string tokenAurtorizacion)
+        {
+           System.Diagnostics.Process.Start(ConfigurationManager.AppSettings["AutorizacionUsuario"] + tokenAurtorizacion);
         }
     }
 }

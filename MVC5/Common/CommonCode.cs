@@ -99,6 +99,15 @@ namespace MVC5.Common
             //Tercera parte del Base String
             parametrosBaseStr = ObtenerParametrosBaseString(parametrosSegu, out string timeStamp2, out string nonce2);
             timeStamp = timeStamp2;
+            //Comprobar si ya existe el nounce para este usuario. Si no guardarlo.
+            using (Models.VaroGalleryContext Context = new Models.VaroGalleryContext())
+            {
+                Models.Parametro Param1 = new Models.Parametro();
+                Param1.IdParametro = 1;
+                Param1.Valor = "Hola";
+                Context.Parametros.Add(Param1);
+                Context.SaveChanges();
+            }
             nonce = nonce2;
             //Unión de todas las partes para conformar el BaseString
             string baseString = ObtenerBaseString(parametrosBaseStr, utf8EndPointToken);
@@ -118,6 +127,7 @@ namespace MVC5.Common
             string[] parametrosBaseString = new string[7];
             
             timeStamp2 = ObtenerNonce(out string oauthNonce); //TimeStamp
+            //Validar si ya existe un nonce.
             nonce2 = oauthNonce;  //Nonce - Guid
             parametrosBaseString[0] = string.Concat("=", parametrosSegu[3], "&"); //oauthCallBack
             parametrosBaseString[1] = string.Concat("=", parametrosSegu[0], "&"); //oauthConsumerKey
@@ -187,6 +197,21 @@ namespace MVC5.Common
                 "oauth_timestamp=" + timeStamp + "&" + "oauth_version=" + infoSegApp[4] + "&" +
                 "oauth_signature=" + signature;
             return requestUrlSolicitudToken;
+        }
+
+        public static string ObtenerTokenAutorizacion(string respToken)
+        {
+            List<string> respTokenDescompuesta = respToken.Split('=').ToList();
+            int limite = respTokenDescompuesta[2].IndexOf("&");
+            string tokenAutorizacion = respTokenDescompuesta[2].Substring(0, limite++);
+            return tokenAutorizacion;
+        }
+
+        public static string ObtenerVerificador(string respVerificador)
+        {
+            List<string> respVerificadorDescompuesta = respVerificador.Split('=').ToList();
+            string  verificador = respVerificadorDescompuesta[3];
+            return verificador;
         }
     }
 }
